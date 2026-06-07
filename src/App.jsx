@@ -253,10 +253,15 @@ export default function App() {
   /* ---- Live mode: send the file to the FastAPI backend for reconciled, live-priced numbers + XIRR ---- */
   async function loadFromServer(f) {
     if (!f) return;
+    setErr(""); setFileName("Waking server… (first request may take ~30s)");
     try {
       const fd = new FormData();
       fd.append("file", f);
-      const res = await fetch("https://ledger-backend-dspk.onrender.com/api/portfolio?live=true", { method: "POST", body: fd });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 90000); // 90s — covers Render cold-start
+      const res = await fetch("https://ledger-backend-dspk.onrender.com/api/portfolio?live=true",
+        { method: "POST", body: fd, signal: ctrl.signal });
+      clearTimeout(timer);
       if (!res.ok) throw new Error((await res.json()).detail || "server error");
       const data = await res.json();
       CUR = CMAP[data.meta.currency] || CUR;
@@ -265,7 +270,7 @@ export default function App() {
       setFileName(`${f.name} · live${data.meta.xirr != null ? ` · XIRR ${data.meta.xirr}%` : ""}`);
       setErr(""); setBucket("All"); setTab("overview");
     } catch (e) {
-      setErr("Server: " + e.message + " — is the backend running on :8000?");
+      setErr("Server: " + (e.name === "AbortError" ? "request timed out — server may still be waking, try again in 10s" : e.message));
     }
   }
 
