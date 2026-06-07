@@ -199,21 +199,23 @@ export default function App() {
   const serverRef = useRef();
 
   const rows = useMemo(() => holdings.map((h) => {
-    const bucket = h.bucket || bucketOf(h.category); const pl = h.current - h.invested; const size = Math.abs(h.current);
-    const ret = h.invested ? (pl / Math.abs(h.invested)) * 100 : 0; const isShort = (h.qty != null && h.qty < 0) || h.current < 0;
-    return { ...h, bucket, pl, size, ret, isShort }; }), [holdings]);
+    const bucket = h.bucket || bucketOf(h.category);
+    const invested = h.invested ?? 0; const current = h.current ?? 0;
+    const pl = current - invested; const size = Math.abs(current);
+    const ret = invested ? (pl / Math.abs(invested)) * 100 : 0; const isShort = (h.qty != null && h.qty < 0) || current < 0;
+    return { ...h, invested, current, bucket, pl, size, ret, isShort }; }), [holdings]);
   const cats = useMemo(() => [...new Set(rows.map((r) => r.category))], [rows]);
   const totals = useMemo(() => { const inv = rows.reduce((s, r) => s + r.invested, 0), cur = rows.reduce((s, r) => s + r.current, 0), abs = rows.reduce((s, r) => s + r.size, 0); return { inv, cur, abs, pl: cur - inv, ret: inv ? ((cur - inv) / Math.abs(inv)) * 100 : 0 }; }, [rows]);
   const A = totals.abs || 1;
 
   const byBucket = useMemo(() => { const m = {};
     rows.forEach((r) => { m[r.bucket] = m[r.bucket] || { bucket: r.bucket, invested: 0, current: 0, size: 0, n: 0, cats: {} };
-      m[r.bucket].invested += r.invested; m[r.bucket].current += r.current; m[r.bucket].size += r.size; m[r.bucket].n++;
+      m[r.bucket].invested += (r.invested || 0); m[r.bucket].current += (r.current || 0); m[r.bucket].size += (r.size || 0); m[r.bucket].n++;
       m[r.bucket].cats[r.category] = m[r.bucket].cats[r.category] || { category: r.category, invested: 0, current: 0, size: 0, n: 0 };
-      m[r.bucket].cats[r.category].invested += r.invested; m[r.bucket].cats[r.category].current += r.current; m[r.bucket].cats[r.category].size += r.size; m[r.bucket].cats[r.category].n++; });
-    return Object.values(m).map((b) => ({ ...b, pl: b.current - b.invested, ret: b.invested ? (b.pl / Math.abs(b.invested)) * 100 : 0, share: (b.size / A) * 100,
-      cats: Object.values(b.cats).map((c) => ({ ...c, pl: c.current - c.invested, ret: c.invested ? (c.pl / Math.abs(c.invested)) * 100 : 0, share: (c.size / A) * 100, plShare: totals.pl ? (c.pl / totals.pl) * 100 : 0 })).sort((a, z) => z.size - a.size),
-    })).sort((a, z) => z.size - a.size); }, [rows, totals, A]);
+      m[r.bucket].cats[r.category].invested += (r.invested || 0); m[r.bucket].cats[r.category].current += (r.current || 0); m[r.bucket].cats[r.category].size += (r.size || 0); m[r.bucket].cats[r.category].n++; });
+    return Object.values(m).map((b) => { const pl = b.current - b.invested; const ret = b.invested ? (pl / Math.abs(b.invested)) * 100 : 0; return { ...b, pl, ret: isNaN(ret) ? 0 : ret, share: (b.size / A) * 100,
+      cats: Object.values(b.cats).map((c) => { const cpl = c.current - c.invested; const cret = c.invested ? (cpl / Math.abs(c.invested)) * 100 : 0; return { ...c, pl: cpl, ret: isNaN(cret) ? 0 : cret, share: (c.size / A) * 100, plShare: totals.pl ? (cpl / totals.pl) * 100 : 0 }; }).sort((a, z) => z.size - a.size),
+    }; }).sort((a, z) => z.size - a.size); }, [rows, totals, A]);
 
   const donutData = byBucket.map((b) => ({ name: b.bucket, value: b.size }));
   const activeIdx = active ? donutData.findIndex((d) => d.name === active) : -1;
