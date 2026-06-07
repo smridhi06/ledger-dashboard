@@ -256,7 +256,7 @@ export default function App() {
     try {
       const fd = new FormData();
       fd.append("file", f);
-      const res = await fetch("http://localhost:8000/api/portfolio?live=true", { method: "POST", body: fd });
+      const res = await fetch("https://ledger-backend-dspk.onrender.com/api/portfolio?live=true", { method: "POST", body: fd });
       if (!res.ok) throw new Error((await res.json()).detail || "server error");
       const data = await res.json();
       CUR = CMAP[data.meta.currency] || CUR;
